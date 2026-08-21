@@ -47,7 +47,7 @@ import asyncio
 # load_env_config()
 
 set_default_openai_api("chat_completions")
-set_tracing_disabled(False)
+set_tracing_disabled(True)
 
 
 def create_agent(**kwargs) -> Agent:
@@ -69,11 +69,20 @@ def create_agent(**kwargs) -> Agent:
         if config.get("openai_api_key") and config.get("openai_api_key") != "":
             api_key = config.get("openai_api_key")
 
+    if not base_url:
+        raise ValueError(
+            "No LLM Base URL configured. Set it in Copilot settings or CC_OPENAI_BASE_URL."
+        )
+
     # Check if this is LMStudio and adjust API key handling
     is_lmstudio = is_lmstudio_url(base_url)
     if is_lmstudio and not api_key:
         # LMStudio typically doesn't require an API key, use a placeholder
         api_key = "lmstudio-local"
+    elif not api_key:
+        raise ValueError(
+            "No LLM API key configured. Set it in Copilot settings or CC_OPENAI_API_KEY."
+        )
 
     client = AsyncOpenAI(
         api_key=api_key,
@@ -87,7 +96,11 @@ def create_agent(**kwargs) -> Agent:
     model_from_config = (config or {}).get("model_select")
     model_from_kwargs = kwargs.pop("model", None)
 
-    model_name = model_from_config or model_from_kwargs or "gemini-2.5-flash"
+    model_name = model_from_config or model_from_kwargs
+    if not model_name:
+        raise ValueError(
+            "No LLM model configured. Select a model in Copilot settings or set WORKFLOW_MODEL_NAME."
+        )
     model = OpenAIChatCompletionsModel(model_name, openai_client=client)
 
     # Safety: ensure no stray 'model' remains in kwargs to avoid duplicate kwarg errors

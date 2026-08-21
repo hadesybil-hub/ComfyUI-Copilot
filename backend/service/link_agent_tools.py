@@ -5,7 +5,7 @@ import time
 from typing import Dict, Optional, List
 
 from agents.tool import function_tool
-from ..utils.request_context import get_session_id
+from ..utils.request_context import get_session_id, require_mutation_approval
 from ..dao.workflow_table import get_workflow_data, save_workflow_data
 from ..utils.comfy_gateway import get_object_info
 from ..utils.logger import log
@@ -281,6 +281,10 @@ def save_checkpoint_before_link_modification(session_id: str, action_description
 def apply_connection_fixes(fixes_json: str) -> str:
     """批量应用连接修复，fixes_json应为包含修复指令的JSON字符串"""
     try:
+        approval_error = require_mutation_approval("apply_connection_fixes")
+        if approval_error:
+            return json.dumps(approval_error, ensure_ascii=False)
+
         session_id = get_session_id()
         if not session_id:
             log.error("apply_connection_fixes: No session_id found in context")
@@ -464,4 +468,4 @@ def apply_connection_fixes(fixes_json: str) -> str:
         })
         
     except Exception as e:
-        return json.dumps({"error": f"Failed to apply connection fixes: {str(e)}"}) 
+        return json.dumps({"error": f"Failed to apply connection fixes: {str(e)}"})

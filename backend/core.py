@@ -1,7 +1,6 @@
 import os
 
 from agents._config import set_default_openai_api
-from agents.tracing import set_tracing_disabled
 # from .utils.logger import log
 
 # def load_env_config():
@@ -20,4 +19,3 @@ from agents.tracing import set_tracing_disabled
 # load_env_config()
 
 set_default_openai_api("chat_completions")
-set_tracing_disabled(True)

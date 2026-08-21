@@ -7,11 +7,12 @@ FilePath: /comfyui_copilot/backend/service/mcp-client.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
 from ..service.workflow_rewrite_tools import get_current_workflow
-from ..utils.globals import BACKEND_BASE_URL, get_comfyui_copilot_api_key, DISABLE_WORKFLOW_GEN
+from ..utils.globals import BACKEND_BASE_URL, SEARCH_MCP_URL, get_comfyui_copilot_api_key, DISABLE_WORKFLOW_GEN
 from .. import core
 import asyncio
 import os
 import traceback
+from contextlib import AsyncExitStack
 from typing import List, Dict, Any, Optional
 
 try:
@@ -20,7 +21,6 @@ try:
     from agents.items import ItemHelpers
     from agents.mcp import MCPServerSse
     from agents.run import Runner
-    from agents.tracing import set_tracing_disabled
     from agents import handoff, RunContextWrapper, HandoffInputData
     from agents.extensions import handoff_filters
     if not hasattr(__import__('agents'), 'Agent'):
@@ -115,32 +115,48 @@ async def comfyui_agent_invoke(messages: List[Dict[str, Any]], images: List[Imag
         # Optimize messages with memory compression
         log.info(f"[MCP] Original messages count: {len(messages)}")
         messages = message_memory_optimize(session_id, messages)
-        log.info(f"[MCP] Optimized messages count: {len(messages)}, messages: {messages}")
+        log.info(f"[MCP] Optimized messages count: {len(messages)}")
         
-        # Create MCP server instances
-        mcp_server = MCPServerSse(
-            params= {
-                "url": BACKEND_BASE_URL + "/mcp-server/mcp",
-                "timeout": 300.0,
-                "headers": {"X-Session-Id": session_id, "Authorization": f"Bearer {get_comfyui_copilot_api_key()}"}
-            },
-            cache_tools_list=True,
-            client_session_timeout_seconds=300.0
-        )
-        
-        bing_server = MCPServerSse(
-            params= {
-                "url": "https://mcp.api-inference.modelscope.net/8c9fe550938e4f/sse",
-                "timeout": 300.0,
-                "headers": {"X-Session-Id": session_id, "Authorization": f"Bearer {get_comfyui_copilot_api_key()}"}
-            },
-            cache_tools_list=True,
-            client_session_timeout_seconds=300.0
-        )
-        
-        server_list = [mcp_server, bing_server]
-        
-        async with mcp_server, bing_server:
+        # Local-first: remote MCP servers are opt-in.
+        server_list = []
+        remote_headers = {"X-Session-Id": session_id}
+        remote_key = get_comfyui_copilot_api_key()
+        if remote_key:
+            remote_headers["Authorization"] = f"Bearer {remote_key}"
+
+        if BACKEND_BASE_URL:
+            server_list.append(
+                MCPServerSse(
+                    params={
+                        "url": BACKEND_BASE_URL + "/mcp-server/mcp",
+                        "timeout": 300.0,
+                        "headers": remote_headers,
+                    },
+                    cache_tools_list=True,
+                    client_session_timeout_seconds=300.0,
+                )
+            )
+        else:
+            log.info("[MCP] Remote Copilot workflow service disabled")
+
+        if SEARCH_MCP_URL:
+            server_list.append(
+                MCPServerSse(
+                    params={
+                        "url": SEARCH_MCP_URL,
+                        "timeout": 300.0,
+                        "headers": remote_headers,
+                    },
+                    cache_tools_list=True,
+                    client_session_timeout_seconds=300.0,
+                )
+            )
+        else:
+            log.info("[MCP] External search service disabled")
+
+        async with AsyncExitStack() as stack:
+            for mcp_server in server_list:
+                await stack.enter_async_context(mcp_server)
             
             # 创建workflow_rewrite_agent实例 (session_id通过context获取)
             workflow_rewrite_agent_instance = create_workflow_rewrite_agent()
@@ -200,8 +216,17 @@ async def comfyui_agent_invoke(messages: List[Dict[str, Any]], images: List[Imag
                 on_handoff=on_handoff,
             )
             
-            # Construct instructions based on DISABLE_WORKFLOW_GEN
-            if DISABLE_WORKFLOW_GEN:
+            # Construct instructions from the services explicitly enabled by the user.
+            if not BACKEND_BASE_URL:
+                workflow_creation_instruction = """
+**CASE 3: CREATE OR SEARCH FOR A NEW WORKFLOW**
+IF the user asks for a new workflow, explain that the optional remote workflow
+library/generator is disabled. Do not fabricate workflow search results.
+"""
+                workflow_constraint = """
+- Remote `recall_workflow` and `gen_workflow` tools are unavailable in local-first mode. Do not call them.
+"""
+            elif DISABLE_WORKFLOW_GEN:
                 workflow_creation_instruction = """
 **CASE 3: SEARCH WORKFLOW**
 IF the user wants to find or generate a NEW workflow.
@@ -220,6 +245,15 @@ IF the user wants to find or generate a NEW workflow from scratch.
 """
                 workflow_constraint = """
 - [Critical!] When the user's intent is to get workflows or generate images with specific requirements, you MUST ALWAYS call BOTH recall_workflow tool AND gen_workflow tool to provide comprehensive workflow options. Never call just one of these tools - both are required for complete workflow assistance. First call recall_workflow to find existing similar workflows, then call gen_workflow to generate new workflow options.
+"""
+
+            if SEARCH_MCP_URL:
+                search_constraint = """
+- If local node information is insufficient, you may use the configured external search tool.
+"""
+            else:
+                search_constraint = """
+- External search is disabled. Use only local ComfyUI evidence and clearly state when information is unavailable.
 """
 
             agent = create_agent(
@@ -280,9 +314,9 @@ You must adhere to the following constraints to complete the task:
 - Respond with markdown, using a minimum of 3 heading levels (H3, H4, H5...), and when including images use the format ![alt text](url),
 {workflow_constraint}
 - When the user's intent is to query, return the query result directly without attempting to assist the user in performing operations.
+- If a mutation or run tool returns `approval_required`, do not retry it. Explain that the user must approve a new request in the UI.
 - When the user's intent is to get prompts for image generation (like Stable Diffusion). Use specific descriptive language with proper weight modifiers (e.g., (word:1.2)), prefer English terms, and separate elements with commas. Include quality terms (high quality, detailed), style specifications (realistic, anime), lighting (cinematic, golden hour), and composition (wide shot, close up) as needed. When appropriate, include negative prompts to exclude unwanted elements. Return words divided by commas directly without any additional text.
-- If you cannot find the information needed to answer a query, consider using bing_search to obtain relevant information. For example, if search_node tool cannot find the node, you can use bing_search to obtain relevant information about those nodes or components.
-- If search_node tool cannot find the node, you MUST use bing_search to obtain relevant information about those nodes or components.
+{search_constraint}
 
 - **ERROR MESSAGE ANALYSIS** - When a user pastes specific error text/logs (containing terms like "Failed", "Error", "Traceback", or stack traces), prioritize providing troubleshooting help rather than invoking search tools. Follow these steps:
   1. Analyze the error to identify the root cause (error type, affected component, missing dependencies, etc.)
@@ -307,9 +341,8 @@ You must adhere to the following constraints to complete the task:
             agent_input = messages
             log.info(f"-- Processing {len(messages)} messages")
 
-            from agents import Agent, Runner, set_trace_processors, set_tracing_disabled, set_default_openai_api
+            from agents import Agent, Runner, set_default_openai_api
             # from langsmith.wrappers import OpenAIAgentsTracingProcessor
-            set_tracing_disabled(False)
             set_default_openai_api("chat_completions")
             # set_trace_processors([OpenAIAgentsTracingProcessor()])
 

@@ -99,11 +99,12 @@ def set_comfyui_copilot_api_key(api_key: str) -> None:
     _global_state.set('comfyui_copilot_api_key', api_key)
 
 
-BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "https://comfyui-copilot-server.onrender.com")
+# Local-first defaults: external services are enabled only when explicitly configured.
+BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "").strip().rstrip("/")
+SEARCH_MCP_URL = os.getenv("COPILOT_SEARCH_MCP_URL", "").strip()
 LMSTUDIO_DEFAULT_BASE_URL = "http://localhost:1234/v1"
-WORKFLOW_MODEL_NAME = os.getenv("WORKFLOW_MODEL_NAME", "us.anthropic.claude-sonnet-4-20250514-v1:0")
-# WORKFLOW_MODEL_NAME = "gpt-5-2025-08-07-GlobalStandard"
-LLM_DEFAULT_BASE_URL = "https://comfyui-copilot-server.onrender.com/v1"
+WORKFLOW_MODEL_NAME = os.getenv("WORKFLOW_MODEL_NAME", "").strip()
+LLM_DEFAULT_BASE_URL = os.getenv("CC_DEFAULT_BASE_URL", "").strip().rstrip("/")
 
 # LLM-related env defaults (used as fallback when request config does not provide values)
 OPENAI_API_KEY = os.getenv("CC_OPENAI_API_KEY") or None

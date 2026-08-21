@@ -101,12 +101,15 @@ class DatabaseManager:
         finally:
             session.close() 
     
-    def get_workflow_version_by_id(self, version_id: int) -> Optional[Dict[str, Any]]:
-        """根据版本ID获取工作流数据"""
+    def get_workflow_version_by_id(self, version_id: int, session_id: str) -> Optional[Dict[str, Any]]:
+        """获取属于指定会话的工作流版本。"""
         session = self.get_session()
         try:
             version = session.query(WorkflowVersion)\
-                .filter(WorkflowVersion.id == version_id)\
+                .filter(
+                    WorkflowVersion.id == version_id,
+                    WorkflowVersion.session_id == session_id,
+                )\
                 .first()
             
             if version:
@@ -119,12 +122,15 @@ class DatabaseManager:
         finally:
             session.close()
     
-    def update_workflow_version(self, version_id: int, workflow_data: Dict[str, Any], attributes: Optional[Dict[str, Any]] = None) -> bool:
-        """更新指定版本的工作流数据"""
+    def update_workflow_version(self, version_id: int, session_id: str, workflow_data: Dict[str, Any], attributes: Optional[Dict[str, Any]] = None) -> bool:
+        """更新属于指定会话的工作流版本。"""
         session = self.get_session()
         try:
             version = session.query(WorkflowVersion)\
-                .filter(WorkflowVersion.id == version_id)\
+                .filter(
+                    WorkflowVersion.id == version_id,
+                    WorkflowVersion.session_id == session_id,
+                )\
                 .first()
             
             if version:
@@ -140,12 +146,15 @@ class DatabaseManager:
         finally:
             session.close()
     
-    def update_workflow_ui(self, version_id: int, workflow_data_ui: Dict[str, Any]) -> bool:
-        """只更新指定版本的workflow_data_ui字段，不影响其他字段"""
+    def update_workflow_ui(self, version_id: int, session_id: str, workflow_data_ui: Dict[str, Any]) -> bool:
+        """只更新属于指定会话的 workflow_data_ui 字段。"""
         session = self.get_session()
         try:
             version = session.query(WorkflowVersion)\
-                .filter(WorkflowVersion.id == version_id)\
+                .filter(
+                    WorkflowVersion.id == version_id,
+                    WorkflowVersion.session_id == session_id,
+                )\
                 .first()
             
             if version:
@@ -174,10 +183,10 @@ def save_workflow_data(session_id: str, workflow_data: Dict[str, Any], workflow_
     """保存工作流数据的便捷函数"""
     return db_manager.save_workflow_version(session_id, workflow_data, workflow_data_ui, attributes)
 
-def get_workflow_data_by_id(version_id: int) -> Optional[Dict[str, Any]]:
-    """根据版本ID获取工作流数据的便捷函数"""
-    return db_manager.get_workflow_version_by_id(version_id)
+def get_workflow_data_by_id(version_id: int, session_id: str) -> Optional[Dict[str, Any]]:
+    """获取属于指定会话的工作流数据。"""
+    return db_manager.get_workflow_version_by_id(version_id, session_id)
 
-def update_workflow_ui_by_id(version_id: int, workflow_data_ui: Dict[str, Any]) -> bool:
-    """只更新指定版本的workflow_data_ui字段的便捷函数"""
-    return db_manager.update_workflow_ui(version_id, workflow_data_ui) 
+def update_workflow_ui_by_id(version_id: int, session_id: str, workflow_data_ui: Dict[str, Any]) -> bool:
+    """只更新属于指定会话的 workflow_data_ui 字段。"""
+    return db_manager.update_workflow_ui(version_id, session_id, workflow_data_ui)

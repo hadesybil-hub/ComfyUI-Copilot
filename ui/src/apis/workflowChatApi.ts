@@ -825,7 +825,16 @@ export namespace WorkflowChatAPI {
     created_at: string;
   }> {
     try {
-      const response = await fetch(`/api/restore-workflow-checkpoint?version_id=${versionId}`, {
+      const sessionId = localStorage.getItem('sessionId');
+      if (!sessionId) {
+        throw new Error('No active session found');
+      }
+
+      const params = new URLSearchParams({
+        version_id: String(versionId),
+        session_id: sessionId,
+      });
+      const response = await fetch(`/api/restore-workflow-checkpoint?${params.toString()}`, {
         method: 'GET',
         headers: {
           'trace-id': generateUUID(),
@@ -880,4 +889,3 @@ export namespace WorkflowChatAPI {
 }
 
   
-

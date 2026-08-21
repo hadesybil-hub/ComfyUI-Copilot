@@ -445,12 +445,13 @@ async def restore_workflow_checkpoint(request):
     
     try:
         version_id = request.query.get('version_id')
+        session_id = request.query.get('session_id')
         
-        if not version_id:
+        if not version_id or not session_id:
             return web.json_response({
                 "success": False,
-                "message": "Missing required parameter: version_id"
-            })
+                "message": "Missing required parameters: version_id and session_id"
+            }, status=400)
         
         try:
             version_id = int(version_id)
@@ -461,13 +462,13 @@ async def restore_workflow_checkpoint(request):
             })
         
         # Get workflow data by version ID
-        workflow_version = get_workflow_data_by_id(version_id)
+        workflow_version = get_workflow_data_by_id(version_id, session_id)
         
         if not workflow_version:
             return web.json_response({
                 "success": False,
-                "message": f"Workflow version {version_id} not found"
-            })
+                "message": "Workflow version not found"
+            }, status=404)
         
         log.info(f"Restored workflow checkpoint version ID: {version_id}")
         
@@ -694,13 +695,14 @@ async def update_workflow_ui(request):
     
     try:
         checkpoint_id = req_json.get('checkpoint_id')
+        session_id = req_json.get('session_id')
         workflow_data_ui = req_json.get('workflow_data_ui')
         
-        if not checkpoint_id or not workflow_data_ui:
+        if not checkpoint_id or not session_id or not workflow_data_ui:
             return web.json_response({
                 "success": False,
-                "message": "Missing required parameters: checkpoint_id and workflow_data_ui"
-            })
+                "message": "Missing required parameters: checkpoint_id, session_id and workflow_data_ui"
+            }, status=400)
         
         try:
             checkpoint_id = int(checkpoint_id)
@@ -711,7 +713,7 @@ async def update_workflow_ui(request):
             })
         
         # Update only the workflow_data_ui field
-        success = update_workflow_ui_by_id(checkpoint_id, workflow_data_ui)
+        success = update_workflow_ui_by_id(checkpoint_id, session_id, workflow_data_ui)
         
         if success:
             log.info(f"Successfully updated workflow_data_ui for checkpoint ID: {checkpoint_id}")

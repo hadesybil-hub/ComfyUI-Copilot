@@ -32,7 +32,7 @@ def get_workflow_data_from_config(config: Dict[str, Any]) -> Optional[Dict[str, 
     
     if workflow_checkpoint_id:
         try:
-            checkpoint_data = get_workflow_data_by_id(workflow_checkpoint_id)
+            checkpoint_data = get_workflow_data_by_id(workflow_checkpoint_id, session_id)
             if checkpoint_data and checkpoint_data.get('workflow_data'):
                 return checkpoint_data['workflow_data']
         except Exception as e:
@@ -50,7 +50,7 @@ def get_workflow_data_ui_from_config(config: Dict[str, Any]) -> Optional[Dict[st
     
     if workflow_checkpoint_id:
         try:
-            checkpoint_data = get_workflow_data_by_id(workflow_checkpoint_id)
+            checkpoint_data = get_workflow_data_by_id(workflow_checkpoint_id, session_id)
             if checkpoint_data and checkpoint_data.get('workflow_data_ui'):
                 return checkpoint_data['workflow_data_ui']
         except Exception as e:

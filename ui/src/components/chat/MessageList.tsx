@@ -394,6 +394,7 @@ export function MessageList({ messages, latestInput, onOptionClick, installedNod
                                                     },
                                                     body: JSON.stringify({
                                                         checkpoint_id: checkpointId,
+                                                        session_id: localStorage.getItem('sessionId'),
                                                         workflow_data_ui: workflowUI
                                                     })
                                                 });
@@ -878,4 +879,4 @@ export function MessageList({ messages, latestInput, onOptionClick, installedNod
             {loading && <LoadingMessage />}
         </div>
     );
-} 
+}

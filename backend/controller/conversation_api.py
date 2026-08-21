@@ -11,7 +11,7 @@ from collections import defaultdict
 from sqlalchemy.orm import identity
 
 from ..utils.globals import set_language, apply_llm_env_defaults
-from ..utils.auth_utils import extract_and_store_api_key
+from ..utils.auth_utils import extract_and_store_api_key, redact_sensitive_config
 import server
 from aiohttp import web
 import base64
@@ -38,6 +38,9 @@ def get_llm_config_from_headers(request):
         "workflow_llm_api_key": request.headers.get('Workflow-LLM-Api-Key'),
         "workflow_llm_base_url": request.headers.get('Workflow-LLM-Base-Url'),
         "workflow_llm_model": request.headers.get('Workflow-LLM-Model'),
+        "mutation_approved": request.headers.get(
+            'X-Copilot-Mutation-Approval', ''
+        ).lower() == 'true',
     }
 
 
@@ -225,7 +228,7 @@ async def invoke_chat(request):
     extract_and_store_api_key(request)
     
     req_json = await request.json()
-    log.info("Request JSON:", req_json)
+    log.info("Chat request body parsed")
 
     response = web.StreamResponse(
         status=200,
@@ -292,7 +295,7 @@ async def invoke_chat(request):
         has_sent_response = False
         previous_text_length = 0
         
-        log.info(f"config: {config}")
+        log.info(f"config: {redact_sensitive_config(config)}")
         
         # Pass messages in OpenAI format (images are now included in messages)
         # Config is now available through request context
@@ -520,7 +523,6 @@ async def invoke_debug(request):
     # Get configuration from headers (OpenAI settings)
     config = {
         "session_id": session_id,
-        "model": "gemini-2.5-flash",  # Default model for debug agents
         **get_llm_config_from_headers(request),
     }
     # Apply .env-based defaults for LLM-related fields (config > .env > code defaults)
@@ -533,7 +535,7 @@ async def invoke_debug(request):
     # 设置请求上下文 - 为debug请求建立context隔离
     set_request_context(session_id, None, config)
     
-    log.info(f"Debug agent config: {config}")
+    log.info(f"Debug agent config: {redact_sensitive_config(config)}")
     log.info(f"Session ID: {session_id}")
     log.info(f"Workflow nodes: {list(workflow_data.keys()) if workflow_data else 'None'}")
 

@@ -45,6 +45,22 @@ def get_config() -> Optional[Dict[str, Any]]:
     """Get the request config from the current request context"""
     return _config.get()
 
+
+def require_mutation_approval(action: str) -> Optional[Dict[str, Any]]:
+    """Return an approval error unless this request explicitly allows mutation."""
+    config = get_config() or {}
+    if config.get("mutation_approved") is True:
+        return None
+    return {
+        "success": False,
+        "approval_required": True,
+        "action": action,
+        "error": (
+            "Explicit user approval is required for this workflow mutation. "
+            "Do not retry the tool in this request."
+        ),
+    }
+
 def set_request_context(session_id: str, workflow_checkpoint_id: Optional[int] = None, config: Optional[Dict[str, Any]] = None) -> None:
     """Set all request context variables at once"""
     set_session_id(session_id)

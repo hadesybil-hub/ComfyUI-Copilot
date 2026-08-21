@@ -12,7 +12,7 @@ from openai.types.responses import ResponseTextDeltaEvent
 from ..service.parameter_tools import *
 from ..service.link_agent_tools import *
 from ..dao.workflow_table import get_workflow_data, save_workflow_data
-from ..utils.request_context import get_session_id, get_config
+from ..utils.request_context import get_session_id, get_config, require_mutation_approval
 
 # Import ComfyUI internal modules
 import uuid
@@ -24,6 +24,10 @@ from ..utils.logger import log
 async def run_workflow() -> str:
     """验证当前session的工作流并返回结果"""
     try:
+        approval_error = require_mutation_approval("run_workflow")
+        if approval_error:
+            return json.dumps(approval_error, ensure_ascii=False)
+
         session_id = get_session_id()
         if not session_id:
             return json.dumps({"error": "No session_id found in context"})
@@ -47,7 +51,7 @@ async def run_workflow() -> str:
         }
         
         result = await gateway.run_prompt(request_data)
-        log.info(result)
+        log.info("Workflow validation completed")
         
         return json.dumps(result)
         

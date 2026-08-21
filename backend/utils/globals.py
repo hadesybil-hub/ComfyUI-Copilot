@@ -104,7 +104,11 @@ BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "").strip().rstrip("/")
 SEARCH_MCP_URL = os.getenv("COPILOT_SEARCH_MCP_URL", "").strip()
 LMSTUDIO_DEFAULT_BASE_URL = "http://localhost:1234/v1"
 WORKFLOW_MODEL_NAME = os.getenv("WORKFLOW_MODEL_NAME", "").strip()
-LLM_DEFAULT_BASE_URL = os.getenv("CC_DEFAULT_BASE_URL", "").strip().rstrip("/")
+LLM_DEFAULT_BASE_URL = (
+    os.getenv("CC_OPENAI_BASE_URL")
+    or os.getenv("CC_DEFAULT_BASE_URL")
+    or ""
+).strip().rstrip("/")
 
 # LLM-related env defaults (used as fallback when request config does not provide values)
 OPENAI_API_KEY = os.getenv("CC_OPENAI_API_KEY") or None

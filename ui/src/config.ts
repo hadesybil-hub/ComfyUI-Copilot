@@ -3,12 +3,14 @@
 
 const isDevelopment = import.meta.env.MODE === 'development'
 
-const defaultApiBaseUrl = 'http://localhost:8000'
+// Production requests must stay on the current ComfyUI origin. An external
+// service can still be supplied explicitly for development builds.
+const defaultApiBaseUrl = ''
 
 export const github_url = 'https://github.com/AIDC-AI/ComfyUI-Copilot'
 
 export const config = {
   apiBaseUrl: isDevelopment 
-    ? defaultApiBaseUrl 
+    ? (import.meta.env.VITE_API_BASE_URL || defaultApiBaseUrl)
     : (import.meta.env.VITE_API_BASE_URL || defaultApiBaseUrl)
-} 
+}

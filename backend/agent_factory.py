@@ -8,7 +8,7 @@ Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查�
 '''
 
 try:
-    from agents import Agent, OpenAIChatCompletionsModel, ModelSettings, Runner, set_tracing_disabled, set_default_openai_api
+    from agents import Agent, OpenAIChatCompletionsModel, ModelSettings, Runner, set_default_openai_api
     if not hasattr(__import__('agents'), 'Agent'):
         raise ImportError
 except Exception:
@@ -27,7 +27,6 @@ from openai import AsyncOpenAI
 
 
 from agents._config import set_default_openai_api
-from agents.tracing import set_tracing_disabled
 import asyncio
 # from .utils.logger import log
 
@@ -47,7 +46,6 @@ import asyncio
 # load_env_config()
 
 set_default_openai_api("chat_completions")
-set_tracing_disabled(True)
 
 
 def create_agent(**kwargs) -> Agent:

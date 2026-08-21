@@ -95,7 +95,7 @@ class DatabaseManager:
                 .order_by(WorkflowVersion.id.desc())\
                 .first()
             
-            if latest_version:
+            if latest_version and latest_version.workflow_data_ui:
                 return json.loads(latest_version.workflow_data_ui)
             return None
         finally:

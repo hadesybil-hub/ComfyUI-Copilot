@@ -22,7 +22,7 @@ from .workflow_rewrite_agent_simple import rewrite_workflow_simple
 
 from ..dao.workflow_table import get_workflow_data, save_workflow_data, get_workflow_data_ui, get_workflow_data_by_id
 from ..utils.comfy_gateway import get_object_info, get_object_info_by_class
-from ..utils.request_context import get_rewrite_context, get_session_id
+from ..utils.request_context import get_rewrite_context, get_session_id, require_mutation_approval
 from ..utils.logger import log
 
 def get_workflow_data_from_config(config: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -342,17 +342,21 @@ def update_workflow(workflow_data: str = "") -> str:
         str: 更新后的工作流数据
     """
     try:
+        approval_error = require_mutation_approval("update_workflow")
+        if approval_error:
+            return json.dumps(approval_error, ensure_ascii=False)
+
         session_id = get_session_id()
         if not session_id:
             return json.dumps({"error": "No session_id found in context"})
         
         if not workflow_data or not isinstance(workflow_data, str) or not workflow_data.strip():
             rewrite_context = get_rewrite_context()
-            log.info(f"[update_workflow] workflow_data: {workflow_data}, trigger simple rewrite, context: {rewrite_context}")
+            log.info("[update_workflow] No explicit workflow payload; using rewrite context")
             workflow_data = rewrite_workflow_simple(rewrite_context)
             
         
-        log.info(f"[update_workflow] workflow_data: {workflow_data}")
+        log.info("[update_workflow] Applying approved workflow update")
         # 在修改前保存checkpoint
         checkpoint_id = save_checkpoint_before_modification(session_id, "workflow update")
         
@@ -406,6 +410,10 @@ def update_workflow(workflow_data: str = "") -> str:
 def remove_node(node_id: str) -> str:
     """从工作流中移除节点"""
     try:
+        approval_error = require_mutation_approval("remove_node")
+        if approval_error:
+            return json.dumps(approval_error, ensure_ascii=False)
+
         session_id = get_session_id()
         if not session_id:
             return json.dumps({"error": "No session_id found in context"})

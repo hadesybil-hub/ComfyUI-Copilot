@@ -9,8 +9,14 @@ Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查�
 # Copyright (C) 2025 AIDC-AI
 # Licensed under the MIT License.
 
+import os
 import sys
 import asyncio
+
+# Disable OpenAI Agents tracing before the SDK is imported. Calling
+# set_tracing_disabled() initializes the SDK's exporter in recent releases,
+# which can fail during plugin startup in proxied/offline environments.
+os.environ.setdefault("OPENAI_AGENTS_DISABLE_TRACING", "1")
 
 
 # Ensure 'agents' resolves to openai-agents (not legacy RL package)

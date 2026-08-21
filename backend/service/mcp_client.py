@@ -21,7 +21,6 @@ try:
     from agents.items import ItemHelpers
     from agents.mcp import MCPServerSse
     from agents.run import Runner
-    from agents.tracing import set_tracing_disabled
     from agents import handoff, RunContextWrapper, HandoffInputData
     from agents.extensions import handoff_filters
     if not hasattr(__import__('agents'), 'Agent'):
@@ -116,7 +115,7 @@ async def comfyui_agent_invoke(messages: List[Dict[str, Any]], images: List[Imag
         # Optimize messages with memory compression
         log.info(f"[MCP] Original messages count: {len(messages)}")
         messages = message_memory_optimize(session_id, messages)
-        log.info(f"[MCP] Optimized messages count: {len(messages)}, messages: {messages}")
+        log.info(f"[MCP] Optimized messages count: {len(messages)}")
         
         # Local-first: remote MCP servers are opt-in.
         server_list = []
@@ -315,6 +314,7 @@ You must adhere to the following constraints to complete the task:
 - Respond with markdown, using a minimum of 3 heading levels (H3, H4, H5...), and when including images use the format ![alt text](url),
 {workflow_constraint}
 - When the user's intent is to query, return the query result directly without attempting to assist the user in performing operations.
+- If a mutation or run tool returns `approval_required`, do not retry it. Explain that the user must approve a new request in the UI.
 - When the user's intent is to get prompts for image generation (like Stable Diffusion). Use specific descriptive language with proper weight modifiers (e.g., (word:1.2)), prefer English terms, and separate elements with commas. Include quality terms (high quality, detailed), style specifications (realistic, anime), lighting (cinematic, golden hour), and composition (wide shot, close up) as needed. When appropriate, include negative prompts to exclude unwanted elements. Return words divided by commas directly without any additional text.
 {search_constraint}
 
@@ -341,9 +341,8 @@ You must adhere to the following constraints to complete the task:
             agent_input = messages
             log.info(f"-- Processing {len(messages)} messages")
 
-            from agents import Agent, Runner, set_trace_processors, set_tracing_disabled, set_default_openai_api
+            from agents import Agent, Runner, set_default_openai_api
             # from langsmith.wrappers import OpenAIAgentsTracingProcessor
-            set_tracing_disabled(True)
             set_default_openai_api("chat_completions")
             # set_trace_processors([OpenAIAgentsTracingProcessor()])
 

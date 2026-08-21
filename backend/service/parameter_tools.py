@@ -2,7 +2,7 @@ import json
 
 from agents.tool import function_tool
 from ..utils.modelscope_gateway import ModelScopeGateway
-from ..utils.request_context import get_session_id
+from ..utils.request_context import get_session_id, require_mutation_approval
 
 from ..utils.comfy_gateway import get_object_info_by_class
 from ..dao.workflow_table import get_workflow_data, save_workflow_data
@@ -484,6 +484,10 @@ def suggest_model_download(models_list: str = "") -> str:
 def update_workflow_parameter(node_id: str, param_name: str, new_value: str) -> str:
     """更新工作流中的特定参数"""
     try:
+        approval_error = require_mutation_approval("update_workflow_parameter")
+        if approval_error:
+            return json.dumps(approval_error, ensure_ascii=False)
+
         session_id = get_session_id()
         if not session_id:
             log.error("update_workflow_parameter: No session_id found in context")
@@ -547,4 +551,3 @@ def update_workflow_parameter(node_id: str, param_name: str, new_value: str) -> 
         
     except Exception as e:
         return json.dumps({"error": f"Failed to update workflow parameter: {str(e)}"})
-

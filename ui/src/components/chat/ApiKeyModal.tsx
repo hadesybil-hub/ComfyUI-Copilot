@@ -14,7 +14,7 @@
 // Licensed under the MIT License.
 
 import { useEffect, useMemo, useState } from 'react';
-import { fetchRsaPublicKey, verifyOpenAiApiKey } from '../../utils/crypto';
+import { verifyOpenAiApiKey } from '../../utils/crypto';
 import Input from '../ui/Input';
 import CollapsibleCard from '../ui/CollapsibleCard';
 import { config } from '../../config';
@@ -56,7 +56,6 @@ export function ApiKeyModal({ isOpen, onClose, onSave, initialApiKey = '', onCon
     const [showOpenaiApiKey, setShowOpenaiApiKey] = useState(false);
     const [verifyingKey, setVerifyingKey] = useState(false);
     const [verificationResult, setVerificationResult] = useState<{success: boolean, message: string} | null>(null);
-    const [rsaPublicKey, setRsaPublicKey] = useState<string | null>(null);
 
     // Workflow LLM configuration
     const [workflowLLMApiKey, setWorkflowLLMApiKey] = useState('');
@@ -111,23 +110,6 @@ export function ApiKeyModal({ isOpen, onClose, onSave, initialApiKey = '', onCon
             setWorkflowLLMModel(savedWorkflowLLMModel);
         }
         
-        // Fetch RSA public key
-        const fetchPublicKey = async () => {
-            try {
-                const savedPublicKey = localStorage.getItem('rsaPublicKey');
-                if (savedPublicKey) {
-                    setRsaPublicKey(savedPublicKey);
-                } else {
-                    const publicKey = await fetchRsaPublicKey();
-                    setRsaPublicKey(publicKey);
-                    localStorage.setItem('rsaPublicKey', publicKey);
-                }
-            } catch (error) {
-                console.error('Failed to fetch RSA public key:', error);
-            }
-        };
-        
-        fetchPublicKey();
     }, [initialApiKey]);
 
     const handleVerifyOpenAiKey = async () => {
@@ -141,14 +123,6 @@ export function ApiKeyModal({ isOpen, onClose, onSave, initialApiKey = '', onCon
             setVerificationResult({
                 success: false,
                 message: 'Please enter an API key or use LMStudio URL (localhost:1234)'
-            });
-            return;
-        }
-        
-        if (!rsaPublicKey && !isLMStudio) {
-            setVerificationResult({
-                success: false,
-                message: 'RSA public key not available. Please try again later.'
             });
             return;
         }
@@ -608,7 +582,7 @@ export function ApiKeyModal({ isOpen, onClose, onSave, initialApiKey = '', onCon
                                 focus:outline-none"
                             />
                             <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                <div className="mb-1"><strong>Optional:</strong> If you don't set, the workflow will use the Claude4 model provided by us. If you need to use other models(note: only some very powerful closed-source models can support this, and they require at least 8192 context) for workflow Debug and modification, please set it.</div>
+                                <div className="mb-1"><strong>Required for local debug/rewrite:</strong> Configure an OpenAI-compatible model with tool-calling support and at least an 8192-token context window.</div>
                             </div>
                             <div className="flex items-center mt-2">
                                 <button
@@ -706,4 +680,4 @@ export function ApiKeyModal({ isOpen, onClose, onSave, initialApiKey = '', onCon
             </Modal>
         </div>
     );
-} 
+}
